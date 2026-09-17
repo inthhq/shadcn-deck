@@ -79,10 +79,10 @@ export function Slide({
 				<>
 					<div
 						className={cn(
-							'-z-10 absolute inset-0 m-8 rounded-b-3xl border-gray-200',
+							'absolute inset-0 -z-10 m-8 rounded-b-3xl border-gray-200',
 						)}
 					/>
-					<div className="-z-20 absolute inset-0 mx-auto px-8">
+					<div className="absolute inset-0 -z-20 mx-auto px-8">
 						<div
 							className={cn(
 								'absolute inset-8 mx-px border-base-300 border-t bg-card px-8',

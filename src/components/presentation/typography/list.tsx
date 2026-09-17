@@ -101,7 +101,7 @@ export function List({
 				);
 			} else if (type === 'arrow') {
 				marker = (
-					<ArrowRight className="mt-2 mr-2 inline-block h-4 w-4 flex-shrink-0 " />
+					<ArrowRight className="mt-2 mr-2 inline-block h-4 w-4 flex-shrink-0" />
 				);
 			} else if (type === 'unordered') {
 				marker = (

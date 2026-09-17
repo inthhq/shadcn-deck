@@ -25,6 +25,8 @@ shadcn/deck is a flexible presentation framework that allows you to create beaut
 
 ## Getting Started
 
+Requires Node.js 22.12 or later and pnpm 12.4.2 (pinned in `package.json`).
+
 1. Clone the repository:
 
 ```bash
@@ -35,24 +37,19 @@ cd shadcn-deck
 2. Install dependencies:
 
 ```bash
-npm install
-# or
-yarn install
-# or
-pnpm install
+corepack enable
+pnpm install --frozen-lockfile
 ```
 
 3. Start the development server:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
 pnpm dev
 ```
 
 4. Open [http://localhost:3000](http://localhost:3000) to see your presentation.
+
+To verify changes, run `pnpm lint`, `pnpm type-check`, and `pnpm build`.
 
 ## Creating Slides
 

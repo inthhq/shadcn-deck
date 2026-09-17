@@ -21,17 +21,14 @@ function SlideThumbnail({
 	onSelect: (slug: string) => void;
 }) {
 	return (
-		<button
-			type="button"
-			onClick={() => onSelect(slideInfo.slug)}
+		<div
 			className={cn(
-				'cursor-pointer overflow-hidden rounded-md border border-border bg-background p-0 shadow-sm transition-all hover:shadow-md',
+				'relative overflow-hidden rounded-md border border-border bg-background p-0 shadow-sm transition-all hover:shadow-md',
 				'hover:border-primary hover:bg-muted/50'
 			)}
-			title={`Go to slide ${slideInfo.slug}: ${slideInfo.title}`}
 		>
 			{/* Same pattern as working grid */}
-			<div className="relative aspect-video w-full overflow-hidden">
+			<div className="relative aspect-video w-full overflow-hidden" inert>
 				<DirectSlidePreview
 					component={slideInfo.component}
 					disablePointerEvents={true}
@@ -45,7 +42,14 @@ function SlideThumbnail({
 					{slideInfo.slug}
 				</div>
 			</div>
-		</button>
+			<button
+				type="button"
+				onClick={() => onSelect(slideInfo.slug)}
+				className="absolute inset-0 z-20 cursor-pointer rounded-md focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-[-2px]"
+				aria-label={`Go to slide ${slideInfo.slug}: ${slideInfo.title}`}
+				title={`Go to slide ${slideInfo.slug}: ${slideInfo.title}`}
+			/>
+		</div>
 	);
 }
 
