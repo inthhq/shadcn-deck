@@ -76,7 +76,7 @@ export function MenuBar({
 						exit={{ opacity: 0, y: 5 }}
 						// @ts-expect-error - compatibility with motion/react
 						transition={springConfig}
-						className="-top-[31px] pointer-events-none absolute right-0 left-0 z-50"
+						className="pointer-events-none absolute -top-[31px] right-0 left-0 z-50"
 					>
 						<motion.div
 							ref={tooltipRef}

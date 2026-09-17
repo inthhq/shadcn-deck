@@ -264,7 +264,7 @@ export function UnifiedControls({
 	}, [isFirstSlide, showStartButton]);
 
 	return (
-		<div className={'-translate-x-1/2 fixed bottom-8 left-1/2 z-50 transform'}>
+		<div className={'fixed bottom-8 left-1/2 z-50 -translate-x-1/2 transform'}>
 			<MenuBar
 				items={menuItems}
 				className={className}

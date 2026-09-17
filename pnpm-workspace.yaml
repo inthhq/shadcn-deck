@@ -1,0 +1,3 @@
+overrides:
+  # Mermaid's parser pins a version affected by GHSA-r5fr-rjxr-66jc.
+  'lodash-es@<4.18.1': '^4.18.1'

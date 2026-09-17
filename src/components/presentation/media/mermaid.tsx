@@ -43,7 +43,6 @@ export function Mermaid({ diagram, size = 'lg' }: MermaidProps) {
 	return (
 		<div
 			className={`flex w-full justify-center ${sizeClasses[size]}`}
-			// biome-ignore lint/security/noDangerouslySetInnerHtml: its okay to use dangerouslySetInnerHTML here
 			dangerouslySetInnerHTML={{ __html: svg }}
 		/>
 	);

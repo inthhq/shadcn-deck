@@ -2,7 +2,6 @@ import {
 	Code,
 	ImageIcon,
 	LayoutGrid,
-	Lightbulb,
 	Maximize,
 	Monitor,
 	Moon,

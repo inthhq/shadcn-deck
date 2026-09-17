@@ -107,6 +107,7 @@ function UpcomingSlidesSkeleton() {
 }
 
 export default function PresenterLayout({
+	children,
 	controls,
 	currentSlide,
 	slideNav,
@@ -114,6 +115,7 @@ export default function PresenterLayout({
 	nextSlide,
 	upcomingSlides,
 }: {
+	children: ReactNode;
 	controls: ReactNode;
 	currentSlide: ReactNode;
 	slideNav: ReactNode;
@@ -151,6 +153,7 @@ export default function PresenterLayout({
 
 	return (
 		<div className="fixed inset-0 flex flex-col overflow-hidden bg-muted text-foreground">
+			{children}
 			{/* Slot for Header Controls */}
 			<Suspense fallback={<ControlsSkeleton />}>{controls}</Suspense>
 

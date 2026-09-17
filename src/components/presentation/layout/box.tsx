@@ -3,7 +3,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { cn } from '~/lib/utils';
 
 // Define box variants using tailwind-variants
-const boxStyles = cva('flex flex-col bg-card text-foreground flex-1', {
+const boxStyles = cva('flex flex-1 flex-col bg-card text-foreground', {
 	variants: {
 		padding: {
 			none: 'p-0',

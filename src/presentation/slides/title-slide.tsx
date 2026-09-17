@@ -1,5 +1,4 @@
 import { Heading, Slide, Text } from '~/components/presentation';
-import { Button } from '~/components/ui/button';
 import type { SlideDefinition } from '~/pkgs/deck';
 
 export const TitleSlide: SlideDefinition = {

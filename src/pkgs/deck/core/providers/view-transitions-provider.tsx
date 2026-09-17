@@ -27,7 +27,6 @@ export function ViewTransitionsProvider({ children }: { children: ReactNode }) {
 
 	const startViewTransition = (callback: () => void) => {
 		if (supportsViewTransitions) {
-			// @ts-ignore - TypeScript doesn't have types for this new API yet
 			document.startViewTransition(callback);
 		} else {
 			// Fallback for browsers that don't support View Transitions
