@@ -51,6 +51,18 @@ pnpm dev
 
 To verify changes, run `pnpm lint`, `pnpm type-check`, and `pnpm build`.
 
+## PDF export
+
+Open **Print view** from the slide controls, then choose **Print / save as PDF**.
+The preview preserves the deck's theme and exports one 16:9 slide per page.
+The button waits for fonts, image decoding (including `Slide.backgroundImage`)
+and components marked `aria-busy="true"`. Offscreen images load eagerly. Failed
+images are reported so you can check the preview before printing.
+
+For custom asynchronous slide content, keep `aria-busy="true"` on its wrapper
+until its content or error fallback is rendered. Use the browser's background
+graphics option if your PDF print settings omit slide colours.
+
 ## Creating Slides
 
 Slides are defined in `src/presentation/router.ts`. Each slide has:

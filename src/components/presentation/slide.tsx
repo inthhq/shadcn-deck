@@ -74,6 +74,7 @@ export function Slide({
 			)}
 			style={backgroundStyle}
 			data-slide-content="true"
+			data-print-background-image={backgroundImage || undefined}
 		>
 			{variant === 'border' && (
 				<>

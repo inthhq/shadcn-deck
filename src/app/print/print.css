@@ -1,0 +1,87 @@
+.print-deck {
+	min-height: 100dvh;
+	padding: 24px;
+	background: var(--background);
+	color: var(--foreground);
+}
+.print-toolbar {
+	position: sticky;
+	top: 0;
+	z-index: 10;
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 12px 24px;
+	max-width: 1280px;
+	margin: 0 auto 24px;
+	padding: 16px 0;
+	background: var(--background);
+}
+.print-toolbar > span {
+	margin-left: auto;
+	color: var(--muted-foreground);
+}
+.print-toolbar > p {
+	flex-basis: 100%;
+	font-size: 14px;
+}
+.print-preview {
+	max-width: 1280px;
+	margin: 0 auto;
+}
+.print-page {
+	position: relative;
+	aspect-ratio: 16 / 9;
+	margin-bottom: 24px;
+	overflow: hidden;
+	outline: 1px solid var(--border);
+}
+.print-canvas {
+	width: 1280px;
+	height: 720px;
+	transform: scale(var(--print-scale, 1));
+	transform-origin: top left;
+}
+@media print {
+	@page deck-slide {
+		size: 1280px 720px;
+		margin: 0;
+	}
+	html:has(.print-deck),
+	body:has(.print-deck) {
+		margin: 0;
+		padding: 0;
+		width: 1280px;
+		height: auto;
+		print-color-adjust: exact;
+		-webkit-print-color-adjust: exact;
+	}
+	.print-deck {
+		min-height: 0;
+		padding: 0;
+	}
+	.print-toolbar {
+		display: none;
+	}
+	.print-page {
+		page: deck-slide;
+		width: 1280px;
+		height: 720px;
+		margin: 0;
+		outline: none;
+		break-after: page;
+		break-inside: avoid;
+	}
+	.print-page:last-child {
+		break-after: auto;
+	}
+	.print-canvas {
+		transform: none;
+	}
+	.print-canvas *,
+	.print-canvas *::before,
+	.print-canvas *::after {
+		animation: none;
+		transition: none;
+	}
+}
