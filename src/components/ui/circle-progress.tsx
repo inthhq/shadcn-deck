@@ -10,6 +10,7 @@ import {
 	useState,
 } from 'react';
 import { cn } from '~/lib/utils';
+import { animateProgress } from './progress-animation';
 
 interface CircleProgressProps extends HTMLAttributes<HTMLDivElement> {
 	value: number;
@@ -62,9 +63,6 @@ const CircleProgress = ({
 	// Use React useId for stable IDs across server/client
 	const stableId = useId();
 
-	// Keep track of previous value to prevent resets
-	const prevValueRef = useRef(value);
-
 	// Initialize with the current value to prevent starting from zero
 	const [animatedValue, setAnimatedValue] = useState(value);
 
@@ -76,11 +74,6 @@ const CircleProgress = ({
 		() => gradientId || `circle-progress-gradient-${stableId}`,
 		[gradientId, stableId]
 	);
-
-	// Update ref when state changes
-	useEffect(() => {
-		animatedValueRef.current = animatedValue;
-	}, [animatedValue]);
 
 	// Calculate dimensions with some margin to prevent cutting off
 	const svgSize = size + strokeWidth * 2;
@@ -108,53 +101,17 @@ const CircleProgress = ({
 			? getColor(fillPercentage)
 			: defaultGetColor(fillPercentage);
 
-	// Animation effect - improved to prevent resets
+	// Restart from the value on screen and cancel the latest scheduled frame.
 	useEffect(() => {
-		// Skip animation on first render or if value hasn't changed
-		if (value === prevValueRef.current) {
-			return;
-		}
-
-		// If animation is disabled, just set the value directly
-		if (disableAnimation) {
-			setAnimatedValue(value);
-			prevValueRef.current = value;
-			return;
-		}
-
-		// Start animation from current value
-		const start = animatedValueRef.current;
-		const end = Math.min(value, maxValue);
-		const startTime = performance.now();
-
-		// Don't animate if the change is tiny
-		if (Math.abs(end - start) < 0.01) {
-			setAnimatedValue(end);
-			prevValueRef.current = value;
-			return;
-		}
-
-		const animateProgress = (timestamp: number) => {
-			const elapsed = timestamp - startTime;
-			const progress = Math.min(elapsed / animationDuration, 1);
-
-			// Use easeOutQuad for smoother deceleration
-			const easeProgress = 1 - (1 - progress) * (1 - progress);
-			const currentValue = start + (end - start) * easeProgress;
-
-			setAnimatedValue(currentValue);
-
-			if (progress < 1) {
-				requestAnimationFrame(animateProgress);
-			} else {
-				// Update the previous value after animation completes
-				prevValueRef.current = value;
-			}
-		};
-
-		const animationFrame = requestAnimationFrame(animateProgress);
-
-		return () => cancelAnimationFrame(animationFrame);
+		return animateProgress({
+			from: animatedValueRef.current,
+			to: Math.min(value, maxValue),
+			duration: disableAnimation ? 0 : animationDuration,
+			onUpdate: (nextValue) => {
+				animatedValueRef.current = nextValue;
+				setAnimatedValue(nextValue);
+			},
+		});
 	}, [value, maxValue, animationDuration, disableAnimation]);
 
 	useEffect(() => {

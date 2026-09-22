@@ -15,6 +15,7 @@ import vs from 'react-syntax-highlighter/dist/cjs/styles/prism/vs';
 // Import themes from CJS build to avoid MIME type issues
 import vscDarkPlus from 'react-syntax-highlighter/dist/cjs/styles/prism/vsc-dark-plus';
 import { Button } from '~/components/ui/button';
+import { observePromise } from '~/lib/observe-promise';
 import { cn } from '~/lib/utils';
 
 // Register the basic languages
@@ -109,7 +110,11 @@ interface CodeProps {
  * Code component - Displays code blocks with syntax highlighting
  * Uses react-syntax-highlighter with CommonJS imports to avoid MIME type issues
  */
-export function Code({
+export function Code({ language = 'javascript', ...props }: CodeProps) {
+	return <CodeBlock key={language} language={language} {...props} />;
+}
+
+function CodeBlock({
 	children,
 	className,
 	language = 'javascript',
@@ -123,15 +128,21 @@ export function Code({
 		loadedLanguages.has(language) || !additionalLanguages[language]
 	);
 
-	// Load additional languages on demand
+	// Keep plain text visible while optional highlighting loads or if it fails.
 	useEffect(() => {
-		if (!loadedLanguages.has(language) && additionalLanguages[language]) {
-			additionalLanguages[language]().then((langModule) => {
+		const load = additionalLanguages[language];
+		if (loadedLanguages.has(language) || !load) {
+			setIsLanguageLoaded(true);
+			return;
+		}
+		return observePromise(
+			load().then((langModule) => {
 				SyntaxHighlighter.registerLanguage(language, langModule);
 				loadedLanguages.add(language);
-				setIsLanguageLoaded(true);
-			});
-		}
+			}),
+			() => setIsLanguageLoaded(true),
+			() => setIsLanguageLoaded(true)
+		);
 	}, [language]);
 
 	// Font size classes
@@ -166,6 +177,7 @@ export function Code({
 	if (!isLanguageLoaded) {
 		return (
 			<div
+				aria-busy={true}
 				className={cn(
 					'relative overflow-hidden rounded-lg border border-[#333333] bg-[#1E1E1E] text-white',
 					fontSizeClasses[fontSize],
@@ -181,6 +193,7 @@ export function Code({
 
 	return (
 		<div
+			aria-busy={false}
 			className={cn(
 				'group relative overflow-hidden rounded-lg border border-[#333333]',
 				fontSizeClasses[fontSize],

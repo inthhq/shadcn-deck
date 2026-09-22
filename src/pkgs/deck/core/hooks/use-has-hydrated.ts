@@ -1,13 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
+
+const subscribe = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 export function useHasHydrated() {
-	const [hasHydrated, setHasHydrated] = useState(false);
-
-	useEffect(() => {
-		setHasHydrated(true);
-	}, []);
-
-	return hasHydrated;
+	return useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot);
 }
