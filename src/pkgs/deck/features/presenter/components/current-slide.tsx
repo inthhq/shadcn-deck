@@ -14,10 +14,7 @@ function SlidePreview({ slide }: { slide: SlideDefinition }) {
 			component={slide.component}
 			baseWidth={1280}
 			baseHeight={720}
-			className="h-auto w-full"
-			centerContent={false}
-			prioritizeWidth={true}
-			fullWidthAutoHeight={true}
+			fullWidthAutoHeight
 		/>
 	);
 }
@@ -28,16 +25,25 @@ export function CurrentSlide() {
 	const hasHydrated = useHasHydrated();
 	const urlSlug = params?.slug as string;
 
-	// Sync URL slug with store when services are ready and slug differs
+	// The URL is authoritative once navigation commits; do not roll back an
+	// optimistic store update while the old route is still rendering.
 	useEffect(() => {
-		if (hasHydrated && isServicesInitialized && urlSlug && slug !== urlSlug) {
-			console.log('🔄 CurrentSlide: Syncing URL slug with store:', {
-				urlSlug,
-				storeSlug: slug,
+		if (
+			hasHydrated &&
+			isServicesInitialized &&
+			urlSlug &&
+			usePresentationStore.getState().slug !== urlSlug
+		) {
+			// Browser back/forward and directly opened presenter URLs are navigation
+			// too. Synced commands already changed the store, so they do not echo.
+			setSlug(urlSlug, {
+				direction: 'direct',
+				fromSlug: usePresentationStore.getState().slug,
+				toSlug: urlSlug,
+				timestamp: Date.now(),
 			});
-			setSlug(urlSlug);
 		}
-	}, [urlSlug, slug, isServicesInitialized, hasHydrated, setSlug]);
+	}, [urlSlug, isServicesInitialized, hasHydrated, setSlug]);
 
 	// Get the current slide ID either from the Zustand store or URL params
 	const currentSlug = hasHydrated ? slug || urlSlug : null;
@@ -50,15 +56,11 @@ export function CurrentSlide() {
 
 	if (!slide || !hasHydrated) {
 		return (
-			<div className="flex h-full w-full items-center justify-center">
+			<div className="flex aspect-video w-full items-center justify-center">
 				<div className="text-muted-foreground">Loading slide...</div>
 			</div>
 		);
 	}
 
-	return (
-		<div className="w-full">
-			<SlidePreview slide={slide} />
-		</div>
-	);
+	return <SlidePreview slide={slide} />;
 }

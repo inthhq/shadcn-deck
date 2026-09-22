@@ -2,7 +2,7 @@
 
 import { useTheme } from 'next-themes';
 import { useRouter } from 'next/navigation';
-import { type ReactNode, useCallback, useEffect, useRef } from 'react';
+import { type ReactNode, useEffect, useEffectEvent, useRef } from 'react';
 import { useFullscreen } from '../hooks/use-fullscreen';
 import { usePresentationStore } from '../store/presentation-store';
 import type { SlideDefinition } from '../types/types';
@@ -36,9 +36,9 @@ export function DeckProvider({
 	});
 
 	const { setTheme, theme } = useTheme();
-	const toggleTheme = useCallback(() => {
+	const toggleTheme = useEffectEvent(() => {
 		setTheme(theme === 'dark' ? 'light' : 'dark');
-	}, [setTheme, theme]);
+	});
 
 	useEffect(() => {
 		if (typeof document !== 'undefined') {
@@ -99,9 +99,11 @@ export function DeckProvider({
 
 			const target = e.target as HTMLElement;
 			if (
-				target.tagName === 'INPUT' ||
-				target.tagName === 'TEXTAREA' ||
-				target.contentEditable === 'true'
+				e.defaultPrevented ||
+				target.closest(
+					'button, a[href], input, textarea, select, summary, dialog, [role="dialog"], [role="button"]'
+				) ||
+				target.isContentEditable
 			) {
 				return;
 			}
@@ -135,13 +137,7 @@ export function DeckProvider({
 		return () => {
 			window.removeEventListener('keydown', handleKeyDown);
 		};
-	}, [
-		goToNextSlide,
-		goToPreviousSlide,
-		toggleFullscreen,
-		toggleTheme,
-		isFullyReady,
-	]);
+	}, [goToNextSlide, goToPreviousSlide, toggleFullscreen, isFullyReady]);
 
 	return <>{children}</>;
 }

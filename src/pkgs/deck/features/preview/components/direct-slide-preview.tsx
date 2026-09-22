@@ -11,7 +11,6 @@ export function DirectSlidePreview({
 	className,
 	disablePointerEvents,
 	centerContent = false,
-	prioritizeWidth = false,
 	allowOverflow = false,
 	fullWidthAutoHeight = false,
 }: {
@@ -21,7 +20,6 @@ export function DirectSlidePreview({
 	className?: string;
 	disablePointerEvents?: boolean;
 	centerContent?: boolean;
-	prioritizeWidth?: boolean;
 	allowOverflow?: boolean;
 	fullWidthAutoHeight?: boolean;
 }) {
@@ -32,7 +30,6 @@ export function DirectSlidePreview({
 			className={className}
 			disablePointerEvents={disablePointerEvents}
 			centerContent={centerContent}
-			prioritizeWidth={prioritizeWidth}
 			allowOverflow={allowOverflow}
 			fullWidthAutoHeight={fullWidthAutoHeight}
 		>

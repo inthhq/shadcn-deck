@@ -1,173 +1,164 @@
 import type {
+	AudienceWindow,
 	ISyncService,
 	NavigationContext,
 	SyncMessage,
 } from '~/pkgs/deck/core/types/types';
 
+const HEARTBEAT_MS = 1500;
+const STALE_AFTER_MS = 7000;
+
+/** Navigation commands and rendered-slide acknowledgements are deliberately separate. */
 export class SyncService implements ISyncService {
 	private channel: BroadcastChannel | null = null;
-	private messageHandler: ((event: MessageEvent) => void) | null = null;
-	private isPresenter: boolean;
-	private isDestroyed = false;
-	private tabId: string;
-	private onSlideChangeCallback:
+	private heartbeat: ReturnType<typeof setInterval> | null = null;
+	private readonly tabId = `tab-${crypto.randomUUID()}`;
+	private displayedSlug: string | null = null;
+	private peers = new Map<string, AudienceWindow>();
+	private onSlideChange:
 		| ((slug: string, context?: NavigationContext) => void)
 		| null = null;
-	private lastBroadcastTime = 0;
-	private readonly BROADCAST_COOLDOWN = 500; // 500ms cooldown to prevent loops
+	private onAudienceChange: ((windows: AudienceWindow[]) => void) | null = null;
+	private getSlug: () => string = () => '';
+	private isPresenter: boolean;
+	private readonly channelName: string;
 
-	constructor(isPresenter = false) {
+	constructor(isPresenter = false, channelName = 'slide-navigation-v2') {
 		this.isPresenter = isPresenter;
-		this.tabId = `tab-${Math.random().toString(36).substr(2, 9)}-${Date.now()}`;
+		this.channelName = channelName;
 	}
 
 	init(
 		onSlideChange: (slug: string, context?: NavigationContext) => void
 	): void {
-		if (this.isDestroyed) {
-			console.warn('SyncService: Cannot initialize destroyed service');
-			return;
-		}
-
-		if (typeof window === 'undefined') {
-			return;
-		}
-
+		this.onSlideChange = onSlideChange;
+		if (typeof window === 'undefined' || this.channel) return;
 		try {
-			// Store the callback
-			this.onSlideChangeCallback = onSlideChange;
-
-			// Don't destroy existing channel if it's working
-			if (!this.channel) {
-				this.channel = new BroadcastChannel('slide-navigation');
-			}
-
-			// Remove old handler if exists
-			if (this.messageHandler) {
-				this.channel.removeEventListener('message', this.messageHandler);
-			}
-
-			this.messageHandler = (event: MessageEvent) => {
-				try {
-					const message = event.data as SyncMessage;
-
-					// Don't process our own messages
-					if (
-						message.source === this.tabId ||
-						message.source?.includes(this.tabId)
-					) {
-						return;
-					}
-
-					// Check if this message is too recent (prevent loops)
-					const timeSinceLastBroadcast = Date.now() - this.lastBroadcastTime;
-					if (timeSinceLastBroadcast < this.BROADCAST_COOLDOWN) {
-						return;
-					}
-
-					if (message.type === 'SLIDE_CHANGE' && message.slug) {
-						const context: NavigationContext = {
-							direction: 'direct',
-							fromSlug: '',
-							toSlug: message.slug,
-							timestamp: message.timestamp || Date.now(),
-						};
-
-						if (this.onSlideChangeCallback) {
-							this.onSlideChangeCallback(message.slug, context);
-						} else {
-							console.warn(
-								'⚠️ SyncService: No callback available for slide change'
-							);
-						}
-					}
-				} catch (error) {
-					console.error('SyncService: Error handling message:', error);
+			this.channel = new BroadcastChannel(this.channelName);
+			this.channel.addEventListener('message', this.handleMessage);
+			window.addEventListener('pagehide', this.leave);
+			window.addEventListener('pageshow', this.announce);
+			this.heartbeat = setInterval(() => {
+				this.announce();
+				const now = Date.now();
+				for (const [id, peer] of this.peers) {
+					if (now - peer.seenAt > STALE_AFTER_MS) this.peers.delete(id);
 				}
-			};
-
-			this.channel.addEventListener('message', this.messageHandler);
-
-			// Handle channel errors
-			this.channel.addEventListener('messageerror', (error) => {
-				console.error('SyncService: BroadcastChannel error:', error);
-			});
-		} catch (error) {
-			console.error('SyncService: Failed to initialize:', error);
+				this.publishPeers();
+			}, HEARTBEAT_MS);
+			this.send('HELLO');
+		} catch {
+			this.channel = null;
 		}
 	}
 
-	broadcast(slug: string, context?: NavigationContext): void {
-		if (this.isDestroyed || !this.channel) {
-			console.warn(
-				'⚠️ SyncService: Cannot broadcast - service destroyed or no channel'
-			);
-			return;
-		}
+	configureAudience(
+		getSlug: () => string,
+		onChange: (windows: AudienceWindow[]) => void
+	) {
+		this.getSlug = getSlug;
+		this.onAudienceChange = onChange;
+	}
 
-		// Check cooldown to prevent rapid broadcasts
-		const now = Date.now();
-		const timeSinceLastBroadcast = now - this.lastBroadcastTime;
-		if (timeSinceLastBroadcast < this.BROADCAST_COOLDOWN) {
-			console.warn('⚠️ SyncService: Broadcast blocked by cooldown', {
-				timeSinceLastBroadcast,
-				cooldown: this.BROADCAST_COOLDOWN,
-				remaining: this.BROADCAST_COOLDOWN - timeSinceLastBroadcast,
+	private send(type: SyncMessage['type'], slug?: string, target?: string) {
+		this.channel?.postMessage({
+			type,
+			slug,
+			target,
+			source: this.tabId,
+			role: this.isPresenter ? 'presenter' : 'audience',
+			timestamp: Date.now(),
+		} satisfies SyncMessage);
+	}
+
+	private handleMessage = (event: MessageEvent<SyncMessage>) => {
+		const message = event.data;
+		if (
+			!message ||
+			typeof message.source !== 'string' ||
+			message.source === this.tabId ||
+			(message.target && message.target !== this.tabId)
+		)
+			return;
+		if (message.type === 'HELLO') {
+			if (this.isPresenter && message.role === 'audience') {
+				this.send('SLIDE_CHANGE', this.getSlug(), message.source);
+			}
+			this.announce();
+		} else if (
+			message.type === 'SLIDE_CHANGE' &&
+			typeof message.slug === 'string'
+		) {
+			this.onSlideChange?.(message.slug, {
+				direction: 'direct',
+				fromSlug: '',
+				toSlug: message.slug,
+				timestamp: message.timestamp,
 			});
-			return;
+		} else if (
+			message.type === 'PRESENCE' &&
+			message.role === 'audience' &&
+			typeof message.slug === 'string'
+		) {
+			this.peers.set(message.source, {
+				id: message.source,
+				slug: message.slug,
+				seenAt: Date.now(),
+			});
+			this.publishPeers();
+		} else if (message.type === 'LEAVE') {
+			this.peers.delete(message.source);
+			this.publishPeers();
 		}
+	};
 
-		try {
-			const message: SyncMessage = {
-				type: 'SLIDE_CHANGE',
-				slug,
-				timestamp: context?.timestamp || now,
-				source: `${this.tabId}${this.isPresenter ? '-presenter' : '-viewer'}`,
-			};
+	private publishPeers() {
+		this.onAudienceChange?.([...this.peers.values()]);
+	}
+	private announce = () => {
+		if (!this.isPresenter && this.displayedSlug)
+			this.send('PRESENCE', this.displayedSlug);
+	};
+	private leave = () => {
+		this.send('LEAVE');
+	};
 
-			this.channel.postMessage(message);
-			this.lastBroadcastTime = now;
-		} catch (error) {
-			console.error('❌ SyncService: Failed to broadcast:', error);
-		}
+	// Called by the audience slide component after React has committed the slide.
+	reportDisplayed(slug: string | null) {
+		this.displayedSlug = slug;
+		if (slug) this.announce();
+		else this.leave();
+	}
+
+	broadcast(slug: string, _context?: NavigationContext): void {
+		// Receivers never rebroadcast commands; no cooldown is needed or safe here.
+		this.send('SLIDE_CHANGE', slug);
 	}
 
 	isConnected(): boolean {
-		return !this.isDestroyed && this.channel !== null;
+		return this.channel !== null;
 	}
 
 	setPresenterMode(isPresenter: boolean): void {
-		const wasPresenter = this.isPresenter;
+		if (this.isPresenter === isPresenter) return;
+		this.leave();
 		this.isPresenter = isPresenter;
-
-		if (wasPresenter !== isPresenter) {
-			// Update tab ID to reflect new mode
-			this.tabId = `tab-${Math.random().toString(36).substr(2, 9)}-${Date.now()}${isPresenter ? '-presenter' : '-viewer'}`;
-
-			// Re-initialize with new mode if we have a callback
-			if (this.onSlideChangeCallback && this.channel) {
-				this.init(this.onSlideChangeCallback);
-			}
-		}
+		this.send('HELLO');
+		this.announce();
 	}
 
 	destroy(): void {
-		if (this.messageHandler && this.channel) {
-			this.channel.removeEventListener('message', this.messageHandler);
-			this.channel.removeEventListener('messageerror', () => {});
+		this.leave();
+		if (this.heartbeat) clearInterval(this.heartbeat);
+		if (typeof window !== 'undefined') {
+			window.removeEventListener('pagehide', this.leave);
+			window.removeEventListener('pageshow', this.announce);
 		}
-
-		if (this.channel) {
-			try {
-				this.channel.close();
-			} catch (error) {
-				console.error('SyncService: Error closing channel:', error);
-			}
-			this.channel = null;
-		}
-
-		this.messageHandler = null;
-		this.onSlideChangeCallback = null;
-		this.isDestroyed = true;
+		this.channel?.removeEventListener('message', this.handleMessage);
+		this.channel?.close();
+		this.channel = null;
+		this.heartbeat = null;
+		this.peers.clear();
+		this.publishPeers();
 	}
 }

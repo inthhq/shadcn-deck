@@ -5,36 +5,26 @@ import { usePresentationStore } from '../../../core/store/presentation-store';
 import { DirectSlidePreview } from './direct-slide-preview';
 
 export function SlidePageWrapper({ slug }: { slug: string }) {
-	const {
-		slides,
-		setSlug,
-		isServicesInitialized,
-		slug: currentSlug,
-	} = usePresentationStore();
+	const { slides, setSlug, isServicesInitialized } = usePresentationStore();
 	const slide = slides.find((s) => s.slug === slug);
 
-	// Sync URL slug with store when services are ready and slug differs
+	// Reconcile only when the URL changes. Reacting to the store's optimistic
+	// update would put the previous URL back while navigation is still pending.
 	useEffect(() => {
-		if (isServicesInitialized && currentSlug !== slug) {
-			const isViewTransitionActive = 
-				typeof document !== 'undefined' && 
-				'startViewTransition' in document &&
-				document.getAnimations().length > 0;
-			
-			if (!isViewTransitionActive) {
-				console.log('🔄 SlidePageWrapper: Syncing URL slug with store:', {
-					urlSlug: slug,
-					storeSlug: currentSlug,
-				});
-				setSlug(slug);
-			} else {
-				console.log('⏸️ SlidePageWrapper: Skipping sync during view transition:', {
-					urlSlug: slug,
-					storeSlug: currentSlug,
-				});
-			}
+		if (
+			isServicesInitialized &&
+			usePresentationStore.getState().slug !== slug
+		) {
+			setSlug(slug);
 		}
-	}, [slug, currentSlug, isServicesInitialized, setSlug]);
+	}, [slug, isServicesInitialized, setSlug]);
+
+	useEffect(() => {
+		if (!isServicesInitialized || !slide) return;
+		const service = usePresentationStore.getState().syncService;
+		service?.reportDisplayed(slug);
+		return () => service?.reportDisplayed(null);
+	}, [slug, slide, isServicesInitialized]);
 
 	if (!slide) {
 		return null;

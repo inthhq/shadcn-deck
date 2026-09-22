@@ -1,62 +1,82 @@
 'use client';
 
-import { MessageSquare } from 'lucide-react';
-import { useParams } from 'next/navigation';
-import { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
-import { cn } from '~/lib/utils';
-import { useHasHydrated } from '../../../core/hooks';
-import { getSlideDataBySlug } from '../../../core/services/slides-service';
-import { usePresentationStore } from '../../../core/store/presentation-store';
+import { useHasHydrated, usePresentation } from '../../../core/hooks';
+import { useTeleprompter } from '../hooks/use-teleprompter';
+import { formatDuration } from '../lib/rehearsal';
+import { usePresenterStore } from '../state/presenter-store';
+import { NotesTextControls, TeleprompterControls } from './notes-controls';
 
 export function Notes() {
-	const params = useParams();
-	const { slug } = usePresentationStore();
-	const hasHydrated = useHasHydrated();
-
-	// Get the current slide ID either from the Zustand store or URL params
-	const currentSlug = hasHydrated ? slug || (params?.slug as string) : null;
-
-	// Use useMemo for slide data to avoid redundant calls
-	const slide = useMemo(() => {
-		if (!currentSlug) return null;
-		return getSlideDataBySlug(currentSlug) || null;
-	}, [currentSlug]);
-
-	if (!slide || !hasHydrated) {
-		return null; // TransitionWrapper will handle loading state
-	}
-
+	const hydrated = useHasHydrated();
+	const { currentSlide: slide } = usePresentation();
+	const fontSize = usePresenterStore((state) => state.fontSize);
+	const wordsPerMinute = usePresenterStore((state) => state.wordsPerMinute);
+	const prompter = useTeleprompter({
+		slug: slide?.slug,
+		ready: hydrated && !!slide,
+		wordsPerMinute,
+	});
+	if (!hydrated || !slide)
+		return <div className="presenter-loading">Loading notes…</div>;
 	return (
-		<Card className="overflow-y-scroll">
-			<CardHeader>
-				<CardTitle className="flex items-center gap-1.5 text-sm">
-					<MessageSquare className="h-4 w-4 text-primary" />
-					Speaker Notes
-				</CardTitle>
-			</CardHeader>
-			<CardContent>
-				<div
-					className={cn(
-						'relative min-h-[100px] rounded-md bg-background p-4',
-						!slide.notes &&
-							'flex items-center justify-center text-muted-foreground italic'
-					)}
-				>
-					{slide.notes ? (
-						<div className="prose prose-sm dark:prose-invert max-w-none">
-							<pre className="m-0 whitespace-pre-wrap border-none bg-transparent p-0 font-mono text-foreground/90 text-sm">
-								{slide.notes}
-							</pre>
-						</div>
-					) : (
-						<p>No notes for this slide</p>
-					)}
-					<div className="absolute top-2 right-2 rounded-full bg-primary px-2 py-0.5 text-primary-foreground text-xs shadow-sm">
-						Slide {slide.slug}
-					</div>
+		<section className="presenter-notes-panel" aria-label="Speaker notes">
+			<div className="presenter-panel-header">
+				<div className="presenter-eyebrow">
+					Speaker notes{' '}
+					<span>
+						{slide.metadata?.duration
+							? `· ${formatDuration(slide.metadata.duration)} target`
+							: '· unscheduled'}
+					</span>
 				</div>
-			</CardContent>
-		</Card>
+				<NotesTextControls />
+			</div>
+			<section
+				id="presenter-note-script"
+				className="presenter-notes-scroll"
+				ref={prompter.scroll}
+				// biome-ignore lint/a11y/noNoninteractiveTabindex: Scrollable notes must be reachable for keyboard scrolling.
+				tabIndex={0}
+				aria-label={`Notes for slide ${slide.slug}`}
+				onWheel={prompter.pauseForInteraction}
+				onTouchStart={prompter.pauseForInteraction}
+				onPointerDown={prompter.pauseForInteraction}
+				onKeyDown={(event) => {
+					if (
+						[
+							' ',
+							'ArrowUp',
+							'ArrowDown',
+							'PageUp',
+							'PageDown',
+							'Home',
+							'End',
+						].includes(event.key)
+					) {
+						event.stopPropagation();
+						prompter.pauseForInteraction();
+					}
+				}}
+			>
+				<div
+					className="presenter-script"
+					ref={prompter.script}
+					style={{ fontSize }}
+				>
+					{typeof slide.notes === 'string'
+						? slide.notes
+								.split(/\n{2,}/)
+								.map((paragraph, index) => (
+									<p key={`${slide.slug}-${index}`}>{paragraph}</p>
+								))
+						: slide.notes || (
+								<p className="presenter-muted">
+									No speaker notes for this slide.
+								</p>
+							)}
+				</div>
+			</section>
+			<TeleprompterControls prompter={prompter} />
+		</section>
 	);
 }

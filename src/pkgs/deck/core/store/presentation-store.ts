@@ -2,6 +2,7 @@ import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type {
+	AudienceWindow,
 	INavigationService,
 	ISyncService,
 	NavigationContext,
@@ -10,6 +11,11 @@ import type {
 } from '~/pkgs/deck/core/types/types';
 import { NavigationService } from '../services/navigation-service';
 import { SyncService } from '../services/sync-service';
+
+function getPresenterPath(slug: string) {
+	const prefix = window.location.pathname.match(/^\/(ref\/[^/]+)/)?.[0] ?? '';
+	return `${prefix}/presenter/${slug}`;
+}
 
 interface PresentationState {
 	// Core state
@@ -25,6 +31,7 @@ interface PresentationState {
 	isPresenterMode: boolean;
 	isLoading: boolean;
 	error: PresentationError | null;
+	audienceWindows: AudienceWindow[];
 
 	// Initialization state
 	isServicesInitialized: boolean;
@@ -64,6 +71,7 @@ export const usePresentationStore = create<PresentationState>()(
 			isPresenterMode: false,
 			isLoading: false,
 			error: null,
+			audienceWindows: [],
 			isServicesInitialized: false,
 			isFullyReady: false,
 
@@ -132,9 +140,9 @@ export const usePresentationStore = create<PresentationState>()(
 						error: null,
 					});
 
-					// Broadcast from both presenters AND viewers when it's a user-initiated action
-					const shouldBroadcast =
-						syncService && context && context.direction !== 'direct';
+					// Incoming sync updates set state directly; every explicit navigation,
+					// including an outline/search jump, must reach the audience.
+					const shouldBroadcast = syncService && context;
 
 					if (shouldBroadcast) {
 						syncService.broadcast(slug, context);
@@ -186,7 +194,7 @@ export const usePresentationStore = create<PresentationState>()(
 
 						// Then handle routing
 						if (isPresenterMode && router) {
-							router.push(`/presenter/${nextSlug}`);
+							router.push(getPresenterPath(nextSlug));
 						} else {
 							window.dispatchEvent(
 								new CustomEvent('urlchange', {
@@ -236,7 +244,7 @@ export const usePresentationStore = create<PresentationState>()(
 
 						// Then handle routing
 						if (isPresenterMode && router) {
-							router.push(`/presenter/${prevSlug}`);
+							router.push(getPresenterPath(prevSlug));
 						} else {
 							window.dispatchEvent(
 								new CustomEvent('urlchange', {
@@ -286,7 +294,7 @@ export const usePresentationStore = create<PresentationState>()(
 
 						// Then handle routing
 						if (isPresenterMode && router) {
-							router.push(`/presenter/${targetSlug}`);
+							router.push(getPresenterPath(targetSlug));
 						} else {
 							window.dispatchEvent(
 								new CustomEvent('urlchange', {
@@ -332,7 +340,16 @@ export const usePresentationStore = create<PresentationState>()(
 
 					// Initialize sync service
 					const syncService = new SyncService(isPresenterMode);
+					syncService.configureAudience(
+						() => get().slug,
+						(audienceWindows) => set({ audienceWindows })
+					);
 					syncService.init((slug) => {
+						const viewPath = window.location.pathname.replace(
+							/^\/ref\/[^/]+/,
+							''
+						);
+						if (viewPath === '/print' || viewPath === '/grid') return;
 						// Handle incoming slide changes from other tabs
 						const currentState = get();
 
@@ -356,13 +373,15 @@ export const usePresentationStore = create<PresentationState>()(
 
 								// Then update the URL
 								if (currentState.router) {
-									const params = new URLSearchParams(window.location.search);
-									const ref = params.get('ref');
+									const prefix =
+										window.location.pathname.match(/^\/(ref\/[^/]+)/)?.[0] ??
+										'';
 									const basePath = currentState.isPresenterMode
 										? `/presenter/${slug}`
 										: `/${slug}`;
-									const targetPath = ref ? `/ref/${ref}${basePath}` : basePath;
-									currentState.router.push(targetPath);
+									currentState.router.replace(`${prefix}${basePath}`, {
+										scroll: false,
+									});
 								}
 							} else {
 								console.warn('⚠️ Store: Invalid slide from sync', slug);

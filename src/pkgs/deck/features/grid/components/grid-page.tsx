@@ -70,7 +70,6 @@ export function GridPage() {
 								baseHeight={SLIDE_BASE_HEIGHT}
 								className="h-full w-full"
 								centerContent={true}
-								prioritizeWidth={true}
 								disablePointerEvents={true}
 							/>
 							{/* Slide number overlay */}
