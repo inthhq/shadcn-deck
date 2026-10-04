@@ -333,6 +333,11 @@ export const usePresentationStore = create<PresentationState>()(
 					// Initialize sync service
 					const syncService = new SyncService(isPresenterMode);
 					syncService.init((slug) => {
+						const viewPath = window.location.pathname.replace(
+							/^\/ref\/[^/]+/,
+							''
+						);
+						if (viewPath === '/print' || viewPath === '/grid') return;
 						// Handle incoming slide changes from other tabs
 						const currentState = get();
 

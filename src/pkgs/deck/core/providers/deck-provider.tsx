@@ -93,6 +93,10 @@ export function DeckProvider({
 		if (!isFullyReady) return;
 
 		const handleKeyDown = (e: KeyboardEvent) => {
+			// Print preview uses native scrolling and button keyboard activation.
+			if (window.location.pathname.replace(/^\/ref\/[^/]+/, '') === '/print') {
+				return;
+			}
 			if (e.ctrlKey || e.altKey || e.metaKey) {
 				return;
 			}

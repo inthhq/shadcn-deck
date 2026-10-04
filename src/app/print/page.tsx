@@ -1,75 +1,83 @@
 'use client';
-import { useReactToPrint } from 'react-to-print';
-import { usePresentationStore } from '~/pkgs/deck/core/store/presentation-store';
-import { DirectSlidePreview } from '~/pkgs/deck/features/preview/components/direct-slide-preview';
-import { useEffect, useRef } from 'react';
-import { MenuBar } from '~/components/ui/bottom-menu';
-import { Printer as PrintIcon } from 'lucide-react';
+
+import Link from 'next/link';
+import { usePathname, useSearchParams } from 'next/navigation';
+import {
+	type CSSProperties,
+	Suspense,
+	useEffect,
+	useRef,
+	useState,
+} from 'react';
+import useMeasure from 'react-use-measure';
+import { Button } from '~/components/ui/button';
+import {
+	observePrintReadiness,
+	type PrintReadiness,
+} from '~/pkgs/deck/features/print/lib/readiness';
+import { slideDefinitions } from '~/presentation/router';
+import './print.css';
+
+function OverviewLink() {
+	const pathname = usePathname();
+	const query = useSearchParams();
+	const prefix = pathname.match(/^\/ref\/[^/]+/)?.[0];
+	const ref = query.get('ref');
+	return (
+		<Link
+			href={`${prefix ?? (ref ? `/ref/${encodeURIComponent(ref)}` : '')}/grid`}
+		>
+			← Slide overview
+		</Link>
+	);
+}
 
 export default function PrintPage() {
-	const { slides } = usePresentationStore();
-	const printRef = useRef<HTMLDivElement>(null);
-
-	const handlePrint = useReactToPrint({
-		contentRef: printRef,
+	const pages = useRef<HTMLDivElement>(null);
+	const [measure, bounds] = useMeasure();
+	const [readiness, setReadiness] = useState<PrintReadiness>({
+		ready: false,
+		failedImages: 0,
 	});
-
 	useEffect(() => {
-		const timer = setTimeout(() => {
-			handlePrint();
-		}, 100);
-		return () => clearTimeout(timer);
-	}, [handlePrint]);
+		if (!pages.current) return;
+		return observePrintReadiness(pages.current, setReadiness);
+	}, []);
 
 	return (
-		<div className="bg-black text-white print:bg-white print:text-black">
-			<div className="fixed inset-x-0 bottom-4 z-50 flex justify-center print:hidden">
-				<MenuBar
-					items={[
-						{
-							icon: (props) => <PrintIcon {...props} />,
-							label: 'Print',
-							onClick: handlePrint,
-						},
-					]}
-				/>
+		<main className="print-deck">
+			<header className="print-toolbar">
+				<Suspense fallback={<span>Slide overview</span>}>
+					<OverviewLink />
+				</Suspense>
+				<span>{slideDefinitions.length} slides</span>
+				<Button onClick={() => window.print()} disabled={!readiness.ready}>
+					{readiness.ready ? 'Print / save as PDF' : 'Preparing slides…'}
+				</Button>
+				{readiness.failedImages > 0 && (
+					<p role="status">
+						Some images could not load. Check the preview before printing.
+					</p>
+				)}
+			</header>
+			<div ref={measure} className="print-preview">
+				<div
+					ref={pages}
+					style={{ '--print-scale': bounds.width / 1280 } as CSSProperties}
+				>
+					{slideDefinitions.map((slide, index) => (
+						<article
+							className="print-page"
+							key={slide.slug}
+							aria-label={`Slide ${index + 1}: ${slide.title}`}
+						>
+							<div className="print-canvas">
+								<slide.component />
+							</div>
+						</article>
+					))}
+				</div>
 			</div>
-			<div ref={printRef}>
-				<style jsx global>{`
-					@media print {
-						@page {
-							size: landscape;
-							margin: 0;
-						}
-						html,
-						body {
-							background: white !important;
-							-webkit-print-color-adjust: exact;
-							print-color-adjust: exact;
-							height: 100%;
-						}
-						.slide-container {
-							page-break-after: always;
-							height: 100%;
-							width: 100%;
-						}
-					}
-				`}</style>
-				{slides.map((slide, index) => (
-					<div key={slide.slug} className="slide-container">
-						<h1 className="p-8 font-bold">
-							Slide {index + 1}: {slide.title}
-						</h1>
-						<DirectSlidePreview
-							component={slide.component}
-							baseWidth={1280}
-							baseHeight={720}
-							centerContent={true}
-							fullWidthAutoHeight={true}
-						/>
-					</div>
-				))}
-			</div>
-		</div>
+		</main>
 	);
 }
