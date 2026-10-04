@@ -1,86 +1,96 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useCallback } from 'react';
+import Link from 'next/link';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
 import { Button } from '~/components/ui/button';
 import { cn } from '~/lib/utils';
-import { useDeck } from '../../../core/layouts/deck-context';
 import { usePresentation } from '../../../core/hooks';
-import type { SlideDefinition } from '../../../core/types/types';
+import { useDeck } from '../../../core/layouts/deck-context';
 import { DirectSlidePreview } from '../../preview/components/direct-slide-preview';
+import { getGridSlideHref } from '../lib/grid-navigation';
 
 // Define base dimensions that maintain 16:9 ratio
 const SLIDE_BASE_WIDTH = 1280;
 const SLIDE_BASE_HEIGHT = 720; // 16:9 ratio
 
-export function GridPage() {
+function GridContent() {
 	const { slides } = usePresentation();
-	const { activeSlide, goToSlide } = useDeck();
-	const router = useRouter();
-
-	// Handle closing grid view
-	const handleClose = useCallback(() => {
-		const params = new URLSearchParams(window.location.search);
-		const ref = params.get('ref');
-		router.push(ref ? `/ref/${ref}/1` : '/1');
-	}, [router]);
+	const { activeSlide } = useDeck();
+	const pathname = usePathname();
+	const ref = useSearchParams().get('ref');
+	const closeSlide = slides[activeSlide] ?? slides[0];
+	const closeHref = closeSlide
+		? getGridSlideHref(closeSlide.slug, pathname, ref)
+		: '/';
 
 	return (
-		<div className="min-h-screen bg-background p-8">
-			{/* Header */}
+		<main className="min-h-screen bg-background p-8">
 			<div className="mb-6 flex items-center justify-between">
-				<h2 className="font-bold text-2xl text-foreground">All Slides</h2>
-				<Button
-					onClick={handleClose}
-					variant="ghost"
-					size="icon"
-					className="rounded-full"
-					aria-label="Close grid view"
-				>
-					<X className="size-5" />
+				<h1 className="font-bold text-2xl text-foreground">All Slides</h1>
+				<Button asChild variant="ghost" size="icon" className="rounded-full">
+					<Link href={closeHref} aria-label="Close grid view">
+						<X className="size-5" />
+					</Link>
 				</Button>
 			</div>
 
-			{/* Grid - exactly like test demo */}
 			<div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
-				{slides.map((slide: SlideDefinition, index: number) => (
-					// biome-ignore lint/a11y/noStaticElementInteractions: we get hydration errors otherwise
-					// biome-ignore lint/a11y/useKeyWithClickEvents: we get hydration errors otherwise
+				{slides.map((slide, index) => (
 					<div
-						key={index}
-						// type="button"
+						key={slide.slug}
 						className={cn(
-							'cursor-pointer overflow-hidden rounded-lg border-2 p-0 transition-all hover:scale-105',
+							'relative overflow-hidden rounded-lg border-2 bg-card transition-transform focus-within:outline-2 focus-within:outline-ring focus-within:outline-offset-4 hover:scale-105 motion-reduce:transform-none motion-reduce:transition-none',
 							index === activeSlide
 								? 'border-primary ring-2 ring-primary/50'
 								: 'border-border'
 						)}
-						onClick={() => {
-							goToSlide(index);
-							handleClose();
-						}}
 					>
-						{/* Exact same pattern as working test demo */}
-						<div className="relative aspect-video w-full overflow-hidden bg-gray-100">
+						{/* Keep preview controls out of the tab order and card link. */}
+						<div
+							inert
+							aria-hidden="true"
+							className="relative aspect-video w-full overflow-hidden bg-muted"
+						>
 							<DirectSlidePreview
 								component={slide.component}
 								baseWidth={SLIDE_BASE_WIDTH}
 								baseHeight={SLIDE_BASE_HEIGHT}
 								className="h-full w-full"
 								centerContent={true}
-								prioritizeWidth={true}
 								disablePointerEvents={true}
 							/>
-							{/* Slide number overlay */}
-							<div className="absolute right-2 bottom-1 z-10 rounded-sm bg-background/80 px-2 py-0.5 text-foreground text-xs">
-								{index + 1}
-							</div>
 						</div>
+						<Link
+							href={getGridSlideHref(slide.slug, pathname, ref)}
+							aria-label={`Slide ${index + 1}: ${slide.title}`}
+							aria-current={index === activeSlide ? 'true' : undefined}
+							className="flex items-start gap-3 border-border border-t px-4 py-3 text-foreground after:absolute after:inset-0 after:z-10 focus-visible:outline-none"
+						>
+							<span className="font-mono text-muted-foreground text-sm">
+								{index + 1}
+							</span>
+							<span className="font-medium text-sm">{slide.title}</span>
+						</Link>
 					</div>
 				))}
 			</div>
-		</div>
+		</main>
+	);
+}
+
+export function GridPage() {
+	return (
+		<Suspense
+			fallback={
+				<div className="min-h-screen bg-background p-8 text-muted-foreground">
+					Loading slides...
+				</div>
+			}
+		>
+			<GridContent />
+		</Suspense>
 	);
 }
