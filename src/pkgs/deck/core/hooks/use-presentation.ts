@@ -1,13 +1,10 @@
 'use client';
 
-import { useTheme } from 'next-themes';
 import { usePathname } from 'next/navigation';
-import { useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import { useCallback, useMemo } from 'react';
-
-import { useViewTransitions } from '../providers/view-transitions-provider';
-import { usePresentationStore } from '../store/presentation-store';
 import { getSlideDataBySlug } from '../services/slides-service';
+import { usePresentationStore } from '../store/presentation-store';
 
 /**
  * Hook that extends the presentation store with presenter-specific functionality
@@ -15,8 +12,6 @@ import { getSlideDataBySlug } from '../services/slides-service';
  */
 export function usePresentation() {
 	const pathname = usePathname();
-	const router = useRouter();
-	const { startViewTransition } = useViewTransitions();
 	const { theme, setTheme } = useTheme();
 
 	// Base store state
@@ -51,70 +46,17 @@ export function usePresentation() {
 		return isFirstSlide ? null : slides[currentSlideIndex - 1];
 	}, [isFirstSlide, currentSlideIndex, slides]);
 
-	// Specialized navigation for presenter mode
-	const navigateInPresenterMode = useCallback(
-		(newSlug: string) => {
-			if (getSlideDataBySlug(newSlug)) {
-				startViewTransition(() => {
-					router.push(`/presenter/${newSlug}`);
-				});
-			}
-		},
-		[router, startViewTransition]
-	);
-
-	// ID-based navigation (compatible with old context)
+	// All controls share the store's navigation path, including sync broadcasts.
 	const goToSlide = useCallback(
 		(slug: string) => {
-			const slide = getSlideDataBySlug(slug);
-			if (slide) {
-				const slideIndex = slides.findIndex((s) => s.slug === slug);
-
-				if (slideIndex >= 0) {
-					if (isPresenterMode) {
-						navigateInPresenterMode(slug);
-					} else {
-						// Use our store navigation, but adapt to slug-based API
-						usePresentationStore.getState().goToSlide(slideIndex);
-					}
-				}
-			}
+			const index = slides.findIndex((slide) => slide.slug === slug);
+			if (index >= 0) usePresentationStore.getState().goToSlide(index);
 		},
-		[isPresenterMode, navigateInPresenterMode, slides]
+		[slides]
 	);
-
-	// Override navigation for presenter mode
-	const goToNextSlide = useCallback(() => {
-		if (!isLastSlide && nextSlide) {
-			if (isPresenterMode) {
-				navigateInPresenterMode(nextSlide.slug);
-			} else {
-				baseGoToNextSlide();
-			}
-		}
-	}, [
-		isLastSlide,
-		nextSlide,
-		isPresenterMode,
-		navigateInPresenterMode,
-		baseGoToNextSlide,
-	]);
-
-	const goToPreviousSlide = useCallback(() => {
-		if (!isFirstSlide && previousSlide) {
-			if (isPresenterMode) {
-				navigateInPresenterMode(previousSlide.slug);
-			} else {
-				baseGoToPreviousSlide();
-			}
-		}
-	}, [
-		isFirstSlide,
-		previousSlide,
-		isPresenterMode,
-		navigateInPresenterMode,
-		baseGoToPreviousSlide,
-	]);
+	const navigateInPresenterMode = goToSlide;
+	const goToNextSlide = baseGoToNextSlide;
+	const goToPreviousSlide = baseGoToPreviousSlide;
 
 	// Notes accessor
 	const getSlideNotes = useCallback((slug: string) => {

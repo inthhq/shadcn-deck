@@ -25,10 +25,18 @@ export interface NavigationContext {
 
 // Sync service types
 export interface SyncMessage {
-	type: 'SLIDE_CHANGE' | 'PRESENTER_CONNECT' | 'PRESENTER_DISCONNECT';
+	type: 'SLIDE_CHANGE' | 'HELLO' | 'PRESENCE' | 'LEAVE';
 	slug?: string;
 	timestamp: number;
 	source: string;
+	target?: string;
+	role: 'presenter' | 'audience';
+}
+
+export interface AudienceWindow {
+	id: string;
+	slug: string;
+	seenAt: number;
 }
 
 // Store state types
@@ -55,4 +63,5 @@ export interface ISyncService {
 	broadcast(slug: string, context?: NavigationContext): void;
 	destroy(): void;
 	isConnected(): boolean;
+	reportDisplayed(slug: string | null): void;
 }
