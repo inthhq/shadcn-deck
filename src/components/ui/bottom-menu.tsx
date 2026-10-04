@@ -1,6 +1,7 @@
 'use client';
 
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence } from 'motion/react';
+import * as m from 'motion/react-m';
 import {
 	type HTMLAttributes,
 	type ReactElement,
@@ -27,7 +28,7 @@ interface MenuBarProps extends HTMLAttributes<HTMLDivElement> {
 
 const springConfig = {
 	duration: 0.3,
-	ease: 'easeInOut',
+	ease: 'easeInOut' as const,
 };
 
 export function MenuBar({
@@ -70,15 +71,14 @@ export function MenuBar({
 		<div className={cn('relative', className)} {...props}>
 			<AnimatePresence>
 				{activeIndex !== null && (
-					<motion.div
+					<m.div
 						initial={{ opacity: 0, y: 5 }}
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: 5 }}
-						// @ts-expect-error - compatibility with motion/react
 						transition={springConfig}
 						className="pointer-events-none absolute -top-[31px] right-0 left-0 z-50"
 					>
-						<motion.div
+						<m.div
 							ref={tooltipRef}
 							className={cn(
 								'inline-flex h-7 items-center justify-center overflow-hidden rounded-lg px-3',
@@ -88,7 +88,6 @@ export function MenuBar({
 							)}
 							initial={{ x: tooltipPosition.left }}
 							animate={{ x: tooltipPosition.left }}
-							// @ts-expect-error - compatibility with motion/react
 							transition={springConfig}
 							style={{ width: 'auto' }}
 						>
@@ -100,12 +99,12 @@ export function MenuBar({
 									</span>
 								)}
 							</p>
-						</motion.div>
-					</motion.div>
+						</m.div>
+					</m.div>
 				)}
 			</AnimatePresence>
 
-			<motion.div
+			<m.div
 				ref={menuRef}
 				className={cn(
 					'z-10 inline-flex h-12 items-center justify-center gap-[4px] overflow-hidden px-2',
@@ -123,7 +122,7 @@ export function MenuBar({
 					const isDisabled = item.disabled;
 
 					return (
-						<motion.button
+						<m.button
 							key={index}
 							className={cn(
 								'relative flex size-10 items-center justify-center gap-2 rounded-full px-3 py-1',
@@ -151,10 +150,10 @@ export function MenuBar({
 								</div>
 							</div>
 							<span className="sr-only">{item.label}</span>
-						</motion.button>
+						</m.button>
 					);
 				})}
-			</motion.div>
+			</m.div>
 		</div>
 	);
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { motion } from 'motion/react';
+import * as m from 'motion/react-m';
 import { type ReactNode, useEffect } from 'react';
 
 import { Button } from '~/components/ui/button';
@@ -50,7 +50,7 @@ export function GridView({ isOpen, onClose, slideThumbnails }: GridViewProps) {
 	}
 
 	return (
-		<motion.div
+		<m.div
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
 			exit={{ opacity: 0 }}
@@ -98,6 +98,6 @@ export function GridView({ isOpen, onClose, slideThumbnails }: GridViewProps) {
 					))}
 				</div>
 			</div>
-		</motion.div>
+		</m.div>
 	);
 }

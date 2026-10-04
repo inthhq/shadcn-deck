@@ -1,36 +1,51 @@
 'use client';
 
-import mermaid from 'mermaid';
-import { useEffect, useState } from 'react';
-
-const randomId = () => `mermaid-${Math.random().toString(36).slice(2)}`;
+import { useEffect, useId, useState } from 'react';
+import { observePromise } from '~/lib/observe-promise';
 
 type MermaidProps = {
 	diagram: string;
 	size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
 };
 
+let mermaidPromise: Promise<typeof import('mermaid').default> | undefined;
+
+function loadMermaid() {
+	mermaidPromise ??= import('mermaid')
+		.then(({ default: mermaid }) => {
+			mermaid.initialize({
+				startOnLoad: false,
+				theme: 'base',
+				flowchart: { useMaxWidth: true },
+				suppressErrorRendering: true,
+			});
+			return mermaid;
+		})
+		.catch((error: unknown) => {
+			mermaidPromise = undefined;
+			throw error;
+		});
+	return mermaidPromise;
+}
+
 export function Mermaid({ diagram, size = 'lg' }: MermaidProps) {
-	const [svg, setSvg] = useState('');
-	const [id] = useState(randomId());
+	if (!diagram) return null;
+	return <MermaidDiagram key={diagram} diagram={diagram} size={size} />;
+}
+
+function MermaidDiagram({ diagram, size = 'lg' }: MermaidProps) {
+	const [result, setResult] = useState<
+		{ svg: string; failed: boolean } | undefined
+	>();
+	const id = `mermaid-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
 
 	useEffect(() => {
-		mermaid.initialize({
-			startOnLoad: true,
-			theme: 'base',
-			flowchart: { useMaxWidth: true },
-		});
-
-		if (diagram) {
-			mermaid.render(id, diagram).then(({ svg }) => {
-				setSvg(svg);
-			});
-		}
+		return observePromise(
+			loadMermaid().then((mermaid) => mermaid.render(id, diagram)),
+			({ svg }) => setResult({ svg, failed: false }),
+			() => setResult({ svg: '', failed: true })
+		);
 	}, [diagram, id]);
-
-	if (!diagram) {
-		return null;
-	}
 
 	const sizeClasses = {
 		sm: 'max-w-2xl',
@@ -42,8 +57,24 @@ export function Mermaid({ diagram, size = 'lg' }: MermaidProps) {
 
 	return (
 		<div
+			aria-busy={!result}
 			className={`flex w-full justify-center ${sizeClasses[size]}`}
-			dangerouslySetInnerHTML={{ __html: svg }}
-		/>
+		>
+			{result?.failed ? (
+				<div className="w-full rounded-lg border border-border p-4">
+					<p role="status">Unable to render this diagram.</p>
+					<pre className="mt-2 overflow-auto whitespace-pre-wrap text-sm">
+						<code>{diagram}</code>
+					</pre>
+				</div>
+			) : result ? (
+				<div
+					className="flex w-full justify-center"
+					dangerouslySetInnerHTML={{ __html: result.svg }}
+				/>
+			) : (
+				<p role="status">Loading diagram…</p>
+			)}
+		</div>
 	);
 }
