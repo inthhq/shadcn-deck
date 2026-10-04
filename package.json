@@ -10,9 +10,9 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/consentio/shadcn-deck.git"
+    "url": "https://github.com/inthhq/shadcn-deck.git"
   },
-  "homepage": "https://github.com/consentio/shadcn-deck",
+  "homepage": "https://github.com/inthhq/shadcn-deck",
   "keywords": [
     "presentation",
     "slides",

@@ -30,7 +30,7 @@ Requires Node.js 22.12 or later and pnpm 12.4.2 (pinned in `package.json`).
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/consentio/shadcn-deck.git
+git clone https://github.com/inthhq/shadcn-deck.git
 cd shadcn-deck
 ```
 
