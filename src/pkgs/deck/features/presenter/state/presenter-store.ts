@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { randomId } from '../../../core/lib/random-id';
 import type { SlideDefinition } from '../../../core/types/types';
 import {
 	checkpoint,
@@ -91,7 +92,7 @@ export const usePresenterStore = create<PresenterState>()(
 					run: run
 						? { ...run, activeSlug: slug, runningSince: now }
 						: {
-								id: crypto.randomUUID(),
+								id: randomId(),
 								startedAt: now,
 								finishedAt: null,
 								elapsedMs: 0,

@@ -4,6 +4,7 @@ import type {
 	NavigationContext,
 	SyncMessage,
 } from '~/pkgs/deck/core/types/types';
+import { randomId } from '../lib/random-id';
 
 const HEARTBEAT_MS = 1500;
 const STALE_AFTER_MS = 7000;
@@ -12,9 +13,10 @@ const STALE_AFTER_MS = 7000;
 export class SyncService implements ISyncService {
 	private channel: BroadcastChannel | null = null;
 	private heartbeat: ReturnType<typeof setInterval> | null = null;
-	private readonly tabId = `tab-${crypto.randomUUID()}`;
+	private readonly tabId = `tab-${randomId()}`;
 	private displayedSlug: string | null = null;
 	private peers = new Map<string, AudienceWindow>();
+	private lastPublishedSignature = '[]';
 	private onSlideChange:
 		| ((slug: string, context?: NavigationContext) => void)
 		| null = null;
@@ -113,7 +115,14 @@ export class SyncService implements ISyncService {
 	};
 
 	private publishPeers() {
-		this.onAudienceChange?.([...this.peers.values()]);
+		const peers = [...this.peers.values()];
+		// Heartbeats refresh seenAt without changing the audience's displayed state.
+		const signature = JSON.stringify(
+			peers.map(({ id, slug }) => JSON.stringify([id, slug])).sort()
+		);
+		if (signature === this.lastPublishedSignature) return;
+		this.lastPublishedSignature = signature;
+		this.onAudienceChange?.(peers);
 	}
 	private announce = () => {
 		if (!this.isPresenter && this.displayedSlug)

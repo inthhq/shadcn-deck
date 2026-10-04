@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
+import { register } from 'node:module';
 import { afterEach, test } from 'node:test';
-import { SyncService } from '../src/pkgs/deck/core/services/sync-service.ts';
+import { randomId } from '../src/pkgs/deck/core/lib/random-id.ts';
 import {
 	checkpoint,
 	formatDuration,
@@ -9,6 +10,11 @@ import {
 	snapshotPlan,
 	visitSlide,
 } from '../src/pkgs/deck/features/presenter/lib/rehearsal.ts';
+
+register('./helpers/resolve-store.mjs', import.meta.url);
+const { SyncService } = await import(
+	'../src/pkgs/deck/core/services/sync-service.ts'
+);
 
 const plan = [
 	{ slug: '1', title: 'Opening', duration: 15, appendix: false },
@@ -268,4 +274,71 @@ test('a window that disappears without a leave message expires instead of remain
 	vanished.close();
 	context.mock.timers.tick(9000);
 	assert.equal(peers.length, 0);
+});
+
+test('random IDs use UUIDs when available and work without browser crypto', (context) => {
+	context.mock.method(globalThis.crypto, 'randomUUID', () => 'native-uuid');
+	assert.equal(randomId(), 'native-uuid');
+	const original = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+	try {
+		for (const crypto of [{}, undefined]) {
+			Object.defineProperty(globalThis, 'crypto', {
+				configurable: true,
+				value: crypto,
+			});
+			const first = randomId();
+			assert.match(first, /^[a-z0-9]+-[a-z0-9]+$/);
+			assert.notEqual(randomId(), first);
+			assert.doesNotThrow(() => service(false, 'fallback-test'));
+		}
+	} finally {
+		Object.defineProperty(globalThis, 'crypto', original);
+	}
+});
+
+test('audience notifications ignore heartbeats but retain fresh peers on changes', {
+	timeout: 3000,
+}, async (context) => {
+	context.mock.timers.enable({ apis: ['Date', 'setInterval'], now: 1000 });
+	const channel = `test-${crypto.randomUUID()}`;
+	const presenter = service(true, channel);
+	const publications = [];
+	presenter.configureAudience(
+		() => '1',
+		(peers) => publications.push(peers)
+	);
+	let delivered;
+	presenter.init(() => delivered.resolve());
+	const sender = new BroadcastChannel(channel);
+	context.after(() => sender.close());
+	const send = async (type, source, slug) => {
+		delivered = deferred();
+		sender.postMessage({ type, source, slug, role: 'audience' });
+		// A command on the same channel confirms preceding messages were handled.
+		sender.postMessage({ type: 'SLIDE_CHANGE', source: 'barrier', slug: '1' });
+		await delivered.promise;
+	};
+	await send('PRESENCE', 'audience-a', '1');
+	assert.equal(publications.length, 1);
+	context.mock.timers.tick(3000);
+	await send('PRESENCE', 'audience-a', '1');
+	assert.equal(publications.length, 1);
+	await send('PRESENCE', 'audience-b', '1');
+	assert.equal(publications.length, 2);
+	assert.deepEqual(publications.at(-1), [
+		{ id: 'audience-a', slug: '1', seenAt: 4000 },
+		{ id: 'audience-b', slug: '1', seenAt: 4000 },
+	]);
+	await send('PRESENCE', 'audience-a', '2');
+	assert.equal(publications.length, 3);
+	assert.equal(publications.at(-1)[0].slug, '2');
+	await send('LEAVE', 'audience-b');
+	assert.equal(publications.length, 4);
+	await send('LEAVE', 'audience-b');
+	assert.equal(publications.length, 4);
+	context.mock.timers.tick(9000);
+	assert.equal(publications.length, 5);
+	assert.deepEqual(publications.at(-1), []);
+	presenter.destroy();
+	assert.equal(publications.length, 5);
 });

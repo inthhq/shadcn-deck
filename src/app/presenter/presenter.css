@@ -10,6 +10,7 @@
 	--presenter-primary: #ffc803;
 	--presenter-primary-foreground: #000;
 	--presenter-ring: #a3a3a3;
+
 	position: fixed;
 	inset: 0;
 	display: flex;
@@ -29,6 +30,7 @@
 	--primary-foreground: var(--presenter-primary-foreground);
 	--ring: var(--presenter-ring);
 	--accent-foreground: var(--presenter-foreground);
+
 	min-width: 40px;
 	min-height: 40px;
 	transition-property: background-color, color, border-color, scale;
@@ -164,6 +166,7 @@
 }
 .presenter-timing-popover {
 	--menu-width: min(340px, calc(100vw - 32px));
+
 	position: fixed;
 	inset: 72px 28px auto auto;
 	width: var(--menu-width);

@@ -23,8 +23,13 @@ export function SlidePageWrapper({ slug }: { slug: string }) {
 		if (!isServicesInitialized || !slide) return;
 		const service = usePresentationStore.getState().syncService;
 		service?.reportDisplayed(slug);
-		return () => service?.reportDisplayed(null);
 	}, [slug, slide, isServicesInitialized]);
+
+	useEffect(() => {
+		return () => {
+			usePresentationStore.getState().syncService?.reportDisplayed(null);
+		};
+	}, []);
 
 	if (!slide) {
 		return null;

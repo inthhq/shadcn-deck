@@ -13,7 +13,7 @@ globalThis.window = Object.assign(new EventTarget(), {
 });
 
 // The app's bundler resolves extensionless TypeScript imports; scope the Node
-// test resolver to the store's two service imports without changing app code.
+// test resolver to the store's services and their shared helper.
 const storeUrl = new URL(
 	'../src/pkgs/deck/core/store/presentation-store.ts',
 	import.meta.url

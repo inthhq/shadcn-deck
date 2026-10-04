@@ -4,6 +4,7 @@ import { ChevronDown, Search } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '~/components/ui/button';
 import { useHasHydrated, usePresentation } from '../../../core/hooks';
+import type { SlideDefinition } from '../../../core/types/types';
 import { formatDuration, isAppendix } from '../lib/rehearsal';
 
 export function UpcomingSlides() {
@@ -18,9 +19,9 @@ export function UpcomingSlides() {
 			.toLowerCase()
 			.includes(needle)
 	);
-	const sections = [
-		...new Set(filtered.map((slide) => slide.metadata?.tags?.[0] ?? 'Slides')),
-	];
+	const sectionKey = (slide: SlideDefinition) =>
+		isAppendix(slide) ? 'Appendix' : (slide.metadata?.tags?.[0] ?? 'Slides');
+	const sections = [...new Set(filtered.map(sectionKey))];
 	const mainCount = slides.filter((slide) => !isAppendix(slide)).length;
 	if (!hydrated) return null;
 	return (
@@ -95,9 +96,7 @@ export function UpcomingSlides() {
 							{section === 'Appendix' ? 'Appendix · for questions' : section}
 						</h3>
 						{filtered
-							.filter(
-								(slide) => (slide.metadata?.tags?.[0] ?? 'Slides') === section
-							)
+							.filter((slide) => sectionKey(slide) === section)
 							.map((slide) => (
 								<button
 									type="button"
@@ -110,9 +109,11 @@ export function UpcomingSlides() {
 										{String(slides.indexOf(slide) + 1).padStart(2, '0')}
 									</span>
 									<span>{slide.title}</span>
-									<span className="presenter-outline-duration">
-										{formatDuration(slide.metadata?.duration ?? 0)}
-									</span>
+									{slide.metadata?.duration !== undefined && (
+										<span className="presenter-outline-duration">
+											{formatDuration(slide.metadata.duration)}
+										</span>
+									)}
 								</button>
 							))}
 					</section>

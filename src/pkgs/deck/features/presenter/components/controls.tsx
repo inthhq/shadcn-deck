@@ -29,7 +29,10 @@ export function Controls() {
 			<div className="presenter-header-controls">
 				<TimingControls
 					triggerRef={timingTrigger}
-					onHistory={() => setHistoryOpen(true)}
+					onHistory={() => {
+						pause();
+						setHistoryOpen(true);
+					}}
 					onReset={() => setConfirmReset(true)}
 				/>
 				<AudienceStatus />
